@@ -1,1 +1,1690 @@
 
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>QUADRAX: Chrám zapomenutých bohů (Offline edice)</title>
+    <style>
+        :root {
+            --stone-dark: #161311;
+            --stone-mid: #28231f;
+            --stone-light: #443b34;
+            --gold-accent: #d99b26;
+            --gold-bright: #fcd34d;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: #0b0a09;
+            background-image: 
+                radial-gradient(circle at 50% 20%, rgba(217, 155, 38, 0.08) 0%, transparent 60%),
+                repeating-linear-gradient(45deg, #110f0d 0px, #110f0d 10px, #0d0b0a 10px, #0d0b0a 20px);
+            color: #e7e0d6;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 10px;
+            overflow-x: hidden;
+        }
+
+        .font-pixel {
+            font-family: 'Press Start 2P', 'Courier New', monospace;
+            letter-spacing: 0.05em;
+        }
+
+        .font-dos {
+            font-family: 'VT323', 'Consolas', 'Courier New', monospace;
+        }
+
+        /* Hlavní rám kabinetu */
+        .temple-frame {
+            background: linear-gradient(180deg, #25201c 0%, #181412 100%);
+            border: 4px solid #4a3f37;
+            box-shadow: 
+                inset 0 2px 0 #6b5c50,
+                inset 0 -3px 0 #0f0d0b,
+                0 20px 50px rgba(0, 0, 0, 0.9),
+                0 0 0 2px #0f0d0b;
+            border-radius: 12px;
+            width: 100%;
+            max-width: 960px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            position: relative;
+        }
+
+        .stone-panel {
+            background: #14110f;
+            border: 2px solid #3a312b;
+            box-shadow: inset 0 2px 6px rgba(0,0,0,0.85), 0 1px 0 #4f433b;
+            border-radius: 8px;
+            padding: 8px 12px;
+        }
+
+        /* Tlačítka */
+        .stone-btn {
+            background: linear-gradient(180deg, #3b322c 0%, #26201c 100%);
+            border: 2px solid #574a40;
+            box-shadow: inset 0 1px 0 #78675a, 0 3px 0 #120f0d, 0 4px 6px rgba(0,0,0,0.6);
+            color: #f3ece2;
+            transition: all 0.08s ease;
+            cursor: pointer;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            outline: none;
+        }
+
+        .stone-btn:hover:not(:disabled) {
+            background: linear-gradient(180deg, #4a3f37 0%, #302823 100%);
+            border-color: #8c7665;
+            color: #fff;
+        }
+
+        .stone-btn:active:not(:disabled) {
+            transform: translateY(2px);
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.6), 0 1px 0 #120f0d;
+        }
+
+        .stone-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .stone-btn-gold {
+            background: linear-gradient(180deg, #85581A 0%, #54350d 100%);
+            border-color: #d99b26;
+            box-shadow: inset 0 1px 0 #facc15, 0 3px 0 #291805, 0 4px 6px rgba(0,0,0,0.6);
+            color: #fef08a;
+        }
+
+        .stone-btn-gold:hover:not(:disabled) {
+            background: linear-gradient(180deg, #9e691f 0%, #694310 100%);
+            border-color: #fde047;
+            color: #ffffff;
+        }
+
+        /* Kontejner s Canvasem */
+        .canvas-container {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 16 / 11;
+            background: #090807;
+            border: 3px solid #3c322b;
+            box-shadow: inset 0 0 24px rgba(0,0,0,0.9), 0 2px 0 #57493f;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            image-rendering: pixelated;
+        }
+
+        .crt-overlay {
+            pointer-events: none;
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.22) 50%);
+            background-size: 100% 4px;
+            z-index: 10;
+        }
+
+        /* Flex & Layout utilities bez Tailwindu */
+        .flex { display: flex; }
+        .flex-col { flex-direction: column; }
+        .flex-wrap { flex-wrap: wrap; }
+        .items-center { align-items: center; }
+        .justify-between { justify-content: space-between; }
+        .justify-around { justify-content: space-around; }
+        .justify-center { justify-content: center; }
+        .gap-1 { gap: 4px; }
+        .gap-2 { gap: 8px; }
+        .gap-3 { gap: 12px; }
+        .gap-4 { gap: 16px; }
+        .hidden { display: none !important; }
+
+        .header-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .level-badge {
+            width: 40px;
+            height: 40px;
+            border-radius: 6px;
+            background: rgba(69, 26, 3, 0.8);
+            border: 1px solid rgba(217, 119, 6, 0.6);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        .char-pill {
+            background: rgba(12, 10, 9, 0.95);
+            padding: 4px;
+            border-radius: 8px;
+            border: 1px solid #292524;
+            display: flex;
+            gap: 4px;
+        }
+
+        .char-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .step-pill {
+            background: rgba(12, 10, 9, 0.95);
+            padding: 4px 10px;
+            border-radius: 8px;
+            border: 1px solid #292524;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .step-num {
+            color: #facc15;
+            font-size: 20px;
+            line-height: 1;
+        }
+
+        /* Modální okna */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(4px);
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+
+        .modal-box {
+            background: linear-gradient(180deg, #25201c 0%, #181412 100%);
+            border: 4px solid #4a3f37;
+            border-radius: 12px;
+            width: 100%;
+            max-width: 580px;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.9);
+        }
+
+        .grid-levels {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 12px;
+            max-height: 60vh;
+            overflow-y: auto;
+            padding: 12px 0;
+        }
+
+        .level-card {
+            background: #14110f;
+            border: 2px solid #3a312b;
+            border-radius: 8px;
+            padding: 12px;
+            cursor: pointer;
+            text-align: left;
+            transition: transform 0.1s, border-color 0.1s;
+        }
+
+        .level-card:hover:not(.locked) {
+            transform: translateY(-2px);
+            border-color: #d99b26;
+        }
+
+        .level-card.locked {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
+
+        kbd {
+            background: #0c0a09;
+            border: 1px solid #44403c;
+            border-radius: 4px;
+            padding: 2px 5px;
+            font-size: 10px;
+            color: #a8a29e;
+        }
+
+        @keyframes pulseGlow {
+            0%, 100% { filter: drop-shadow(0 0 4px rgba(250, 204, 21, 0.5)); }
+            50% { filter: drop-shadow(0 0 12px rgba(250, 204, 21, 0.9)); }
+        }
+        .glow-gold { animation: pulseGlow 2.5s infinite; }
+    </style>
+</head>
+<body>
+
+    <main class="temple-frame">
+
+        <!-- HLAVNÍ HLAVIČKA -->
+        <header class="stone-panel header-bar">
+            <div class="flex items-center gap-3">
+                <button onclick="game.showLevelSelect()" class="level-badge" title="Klikni pro výběr levelu">
+                    <span style="font-size: 9px; font-weight: bold; color: #d97706; text-transform: uppercase;">Lvl</span>
+                    <span id="headerLevelId" class="font-pixel" style="color: #fef08a; font-size: 14px;">1</span>
+                </button>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="font-pixel" style="color: #facc15; font-size: 14px;">QUADRAX</span>
+                        <span class="font-dos" style="font-size: 11px; background: rgba(120,53,15,0.4); border: 1px solid rgba(217,119,6,0.4); padding: 1px 5px; border-radius: 4px; color: #fde047;">100% OFFLINE</span>
+                    </div>
+                    <p id="headerLevelTitle" style="font-size: 12px; color: #a8a29e; font-weight: 500;">Chrám zapomenutých bohů</p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2 flex-wrap">
+                <div class="char-pill">
+                    <button id="selectRickBtn" onclick="game.selectExplorer(0)" class="stone-btn" style="padding: 4px 8px; font-size: 11px;">
+                        <span class="char-dot" style="background: #38bdf8; box-shadow: 0 0 6px #38bdf8;"></span> Rick
+                    </button>
+                    <button id="selectBenBtn" onclick="game.selectExplorer(1)" class="stone-btn" style="padding: 4px 8px; font-size: 11px;">
+                        <span class="char-dot" style="background: #f43f5e; box-shadow: 0 0 6px #f43f5e;"></span> Ben
+                    </button>
+                </div>
+                <div class="step-pill">
+                    <span style="font-size: 11px; color: #a8a29e; text-transform: uppercase;">Kroky:</span>
+                    <span id="stepCounter" class="font-dos step-num">000</span>
+                </div>
+                <button onclick="soundFX.toggleMute()" class="stone-btn" style="padding: 6px 10px;" title="Zapnout/Vypnout zvuk (M)">
+                    <span id="soundStatusIcon">🔊</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- CANVAS HERNA -->
+        <div class="canvas-container">
+            <canvas id="gameCanvas" width="768" height="528"></canvas>
+            <div id="crtEffect" class="crt-overlay"></div>
+
+            <!-- OVERLAY: SMRT -->
+            <div id="deathOverlay" class="hidden" style="position: absolute; inset: 0; background: rgba(0,0,0,0.8); z-index: 25; display: flex; align-items: center; justify-content: center; padding: 16px; text-align: center;">
+                <div class="stone-panel" style="max-width: 400px; border-color: #991b1b; padding: 20px;">
+                    <div style="font-size: 38px; margin-bottom: 8px;">💀</div>
+                    <h2 class="font-pixel" style="color: #ef4444; font-size: 14px; margin-bottom: 8px;">SMRTELNÝ PÁD!</h2>
+                    <p id="deathReasonText" style="font-size: 12px; color: #d6d3d1; margin-bottom: 16px;">V chrámu Quadraxu přežiješ seskok nejvýše ze 2 bloků!</p>
+                    <div class="flex justify-center gap-2">
+                        <button onclick="game.undo()" class="stone-btn stone-btn-gold">⏪ Krok zpět (Z)</button>
+                        <button onclick="game.restartLevel()" class="stone-btn">🔄 Restart (R)</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- OVERLAY: VÍTĚZSTVÍ -->
+            <div id="victoryOverlay" class="hidden" style="position: absolute; inset: 0; background: rgba(0,0,0,0.85); z-index: 30; display: flex; align-items: center; justify-content: center; padding: 16px; text-align: center;">
+                <div class="stone-panel" style="max-width: 440px; border-color: #d99b26; padding: 24px;">
+                    <div class="glow-gold" style="font-size: 42px; margin-bottom: 8px;">🏆</div>
+                    <h2 class="font-pixel" style="color: #facc15; font-size: 16px; margin-bottom: 8px;">ÚROVEŇ DOKONČENA!</h2>
+                    <p style="font-size: 12px; color: #e7e5e4; margin-bottom: 14px;">Oba archeologové bezpečně dorazili do zlatého portálu.</p>
+                    <div class="stone-panel flex justify-around items-center" style="margin-bottom: 16px;">
+                        <div>
+                            <div style="font-size: 10px; color: #a8a29e; text-transform: uppercase;">Kroků</div>
+                            <div id="victorySteps" class="font-dos" style="font-size: 24px; color: #facc15;">0</div>
+                        </div>
+                        <div style="width: 1px; height: 32px; background: #44403c;"></div>
+                        <div>
+                            <div style="font-size: 10px; color: #a8a29e; text-transform: uppercase;">Nejlepší</div>
+                            <div id="victoryBest" class="font-dos" style="font-size: 24px; color: #34d399;">-</div>
+                        </div>
+                    </div>
+                    <div class="flex justify-center gap-2">
+                        <button onclick="game.showLevelSelect()" class="stone-btn">📋 Levely</button>
+                        <button onclick="game.loadNextLevel()" class="stone-btn stone-btn-gold font-pixel" style="font-size: 11px;">DALŠÍ LEVEL ▶</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- DENÍK ZPRÁV -->
+        <div class="stone-panel flex items-center gap-2" style="font-size: 12px;">
+            <span style="color: #facc15; font-weight: bold; flex-shrink: 0;">📜 Deník:</span>
+            <span id="statusLog" style="color: #d6d3d1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                Vítej v chrámu Quadraxu. Přepínej hrdiny klávesou TAB.
+            </span>
+        </div>
+
+        <!-- OVLÁDACÍ TLAČÍTKA A TOUCHPAD -->
+        <footer class="flex justify-between items-center gap-2 flex-wrap">
+            <div class="flex items-center gap-1 flex-wrap">
+                <button onclick="game.switchExplorer()" class="stone-btn">⇄ Přepnout <kbd>Tab</kbd></button>
+                <button onclick="game.triggerAction()" class="stone-btn stone-btn-gold">⚙️ Páka <kbd>Space</kbd></button>
+                <button id="undoBtn" onclick="game.undo()" disabled class="stone-btn">⏪ Zpět <kbd>Z</kbd></button>
+                <button onclick="game.restartLevel()" class="stone-btn">🔄 Restart <kbd>R</kbd></button>
+                <button onclick="game.showLevelSelect()" class="stone-btn">📋 Levely <kbd>L</kbd></button>
+                <button onclick="game.showWalkthrough()" class="stone-btn" style="border-color: #b45309;">❓ Nápověda <kbd>H</kbd></button>
+                <button onclick="document.getElementById('settingsModal').classList.remove('hidden')" class="stone-btn">⚙️ Zobrazení</button>
+            </div>
+
+            <!-- D-PAD PRO MOBIL A MYŠ -->
+            <div class="char-pill items-center">
+                <button onclick="game.handleMove(-1, 0)" class="stone-btn" style="width: 38px; height: 34px; font-size: 14px;">◀</button>
+                <div class="flex flex-col gap-1">
+                    <button onclick="game.handleMove(0, -1)" class="stone-btn" style="width: 38px; height: 26px; font-size: 11px;">▲</button>
+                    <button onclick="game.handleMove(0, 1)" class="stone-btn" style="width: 38px; height: 26px; font-size: 11px;">▼</button>
+                </div>
+                <button onclick="game.handleMove(1, 0)" class="stone-btn" style="width: 38px; height: 34px; font-size: 14px;">▶</button>
+            </div>
+        </footer>
+    </main>
+
+    <!-- MODAL: NÁPOVĚDA -->
+    <div id="walkthroughModal" class="modal-overlay hidden">
+        <div class="modal-box">
+            <div class="stone-panel flex justify-between items-center" style="border-radius: 0; border-top: none; border-left: none; border-right: none;">
+                <h3 class="font-pixel" style="color: #facc15; font-size: 12px;">NÁPOVĚDA K ÚROVNI</h3>
+                <button onclick="document.getElementById('walkthroughModal').classList.add('hidden')" class="stone-btn" style="padding: 2px 8px;">✕</button>
+            </div>
+            <div style="padding: 16px; font-size: 12px; max-height: 70vh; overflow-y: auto;">
+                <p id="walkthroughText" style="color: #fde047; font-weight: bold; margin-bottom: 12px;"></p>
+                <ol id="walkthroughList" style="padding-left: 20px; display: flex; flex-direction: column; gap: 8px; color: #d6d3d1;"></ol>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: VÝBĚR ÚROVNĚ -->
+    <div id="levelSelectModal" class="modal-overlay hidden">
+        <div class="modal-box" style="max-width: 720px;">
+            <div class="stone-panel flex justify-between items-center" style="border-radius: 0; border-top: none; border-left: none; border-right: none;">
+                <div class="flex items-center gap-3">
+                    <h3 class="font-pixel" style="color: #facc15; font-size: 13px;">VÝBĚR ÚROVNĚ</h3>
+                    <button id="godModeBtn" onclick="game.toggleGodMode()" class="stone-btn" style="font-size: 10px; padding: 2px 6px; border-color: #991b1b; color: #f87171;">
+                        GOD MODE: OFF
+                    </button>
+                </div>
+                <button onclick="document.getElementById('levelSelectModal').classList.add('hidden')" class="stone-btn" style="padding: 2px 8px;">✕</button>
+            </div>
+            <div style="padding: 16px;">
+                <div id="levelGrid" class="grid-levels"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: NASTAVENÍ -->
+    <div id="settingsModal" class="modal-overlay hidden">
+        <div class="modal-box" style="max-width: 380px;">
+            <div class="stone-panel flex justify-between items-center" style="border-radius: 0; border-top: none; border-left: none; border-right: none;">
+                <h3 class="font-pixel" style="color: #facc15; font-size: 12px;">NASTAVENÍ</h3>
+                <button onclick="document.getElementById('settingsModal').classList.add('hidden')" class="stone-btn" style="padding: 2px 8px;">✕</button>
+            </div>
+            <div style="padding: 16px; display: flex; flex-direction: column; gap: 16px;">
+                <div>
+                    <label style="font-size: 11px; text-transform: uppercase; color: #a8a29e; display: block; margin-bottom: 6px;">Interní rozlišení Canvasu</label>
+                    <div class="flex gap-2">
+                        <button onclick="game.setResolution(1)" class="stone-btn" style="flex: 1;">1x (Retro)</button>
+                        <button onclick="game.setResolution(2)" class="stone-btn" style="flex: 1;">2x (Std)</button>
+                        <button onclick="game.setResolution(3)" class="stone-btn" style="flex: 1;">3x (HD)</button>
+                    </div>
+                </div>
+                <div>
+                    <label style="font-size: 11px; text-transform: uppercase; color: #a8a29e; display: block; margin-bottom: 6px;">Efekty obrazu</label>
+                    <div class="flex flex-col gap-2">
+                        <button onclick="game.toggleCRT()" class="stone-btn">Zapnout / Vypnout CRT linky</button>
+                        <button onclick="game.toggleFullscreen()" class="stone-btn stone-btn-gold">Celá obrazovka (Fullscreen)</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* ============================================================================
+         * KOMPLETNÍ DATABÁZE VŠECH 12 LEVELŮ (100% OFFLINE A OVĚŘENÉ)
+         * ============================================================================ */
+        const LEVELS = [
+            {
+                id: 1,
+                title: "Chrám zapomenutých bohů",
+                grid: [
+                    "################",
+                    "#..............#",
+                    "#..............#",
+                    "#H.......#E...H#",
+                    "#H####...#####H#",
+                    "#H............H#",
+                    "#H............H#",
+                    "#H............H#",
+                    "#H.....####.####",
+                    "#H.....#########",
+                    "################"
+                ],
+                torches: [ {x:3, y:1}, {x:12, y:1}, {x:4, y:6} ],
+                rick: { x: 2, y: 3 }, ben: { x: 2, y: 9 },
+                boulders: [ { id: 0, x: 4, y: 3 }, { id: 1, x: 9, y: 7 } ],
+                levers: {
+                    yellow: { x: 3, y: 3, color: "#facc15" },
+                    cyan: { x: 8, y: 7, color: "#22d3ee" },
+                    green: { x: 11, y: 3, color: "#34d399" }
+                },
+                plates: {
+                    magenta: { x: 11, y: 8, color: "#e879f9" },
+                    green: { x: 13, y: 7, color: "#34d399" }
+                },
+                gates: {
+                    yellow: { x: 5, y: 9, color: "#facc15" },
+                    cyan: { x: 1, y: 5, color: "#22d3ee" },
+                    magenta: { x: 12, y: 7, color: "#e879f9" },
+                    green: { x: 12, y: 3, color: "#34d399" }
+                },
+                exitPos: { x: 10, y: 3 },
+                log: "Dostaň oba hrdiny společně do zlatého portálu.",
+                walkthrough: [
+                    "S Rickem dojdi na Žlutou páku [3,3] a přepni ji (Mezerník) – otevře se Žlutá brána dole.",
+                    "S Rickem zatlač horní balvan doprava přes okraj – spadne dolů.",
+                    "Přepni na Bena (Tab), projdi Žlutou bránou, vylez po balvanu nahoru a přepni Azurovou páku [8,7].",
+                    "S Benem zatlač druhý balvan doprava do prohlubně [11,8] (sepne Purpurovou desku a vytvoří most).",
+                    "S Benem přejdi přes balvan na Zelenou desku [13,7].",
+                    "S Rickem slez dolů, přejdi k pravému žebříku, vylez nahoru a přepni Zelenou páku [11,3].",
+                    "S oběma hrdiny vstup do zlatého portálu [10,3]."
+                ]
+            },
+            {
+                id: 2,
+                title: "Klamná podlaha",
+                grid: [
+                    "################",
+                    "#..............#",
+                    "#H............H#",
+                    "#H###......###H#",
+                    "#H............H#",
+                    "#H............H#",
+                    "#H............H#",
+                    "#H.....E......H#",
+                    "#H..#.####.#..H#",
+                    "################",
+                    "################"
+                ],
+                torches: [ {x:2,y:1}, {x:13,y:1} ],
+                rick: { x: 2, y: 8 }, ben: { x: 13, y: 8 },
+                boulders: [ { id: 0, x: 5, y: 2 }, { id: 1, x: 10, y: 2 } ],
+                levers: {
+                    yellow: { x: 3, y: 2, color: "#facc15" },
+                    green: { x: 12, y: 2, color: "#34d399" }
+                },
+                plates: {
+                    yellow: { x: 5, y: 8, color: "#facc15" },
+                    green: { x: 10, y: 8, color: "#34d399" }
+                },
+                trapdoors: {
+                    yellow: { x: 5, y: 3, color: "#facc15" },
+                    green: { x: 10, y: 3, color: "#34d399" }
+                },
+                gates: {
+                    yellow: { x: 6, y: 7, color: "#facc15" },
+                    green: { x: 9, y: 7, color: "#34d399" }
+                },
+                exitPos: { x: 7, y: 7 },
+                log: "Využij propadla k shození balvanů do spodních prohlubní.",
+                walkthrough: [
+                    "S Rickem vyšplhej k Žluté páce [3,2] a přepni ji – balvan propadne do prohlubně [5,8].",
+                    "S Benem vyšplhej k Zelené páce [12,2] a přepni ji – balvan propadne do prohlubně [10,8].",
+                    "Oba balvany sepnou desky a vytvoří mosty.",
+                    "Slezte po žebřících dolů a vstupte do portálu [7,7]."
+                ]
+            },
+            {
+                id: 3,
+                title: "Kvantový skok",
+                grid: [
+                    "################",
+                    "#H.............#",
+                    "#H...E.........#",
+                    "#H#######......#",
+                    "#H.............#",
+                    "#H.......#######",
+                    "#H.............#",
+                    "#H.............#",
+                    "#H.............#",
+                    "################",
+                    "################"
+                ],
+                torches: [ {x:4,y:1}, {x:12,y:4} ],
+                rick: { x: 2, y: 8 }, ben: { x: 3, y: 8 },
+                boulders: [ { id: 0, x: 10, y: 4 } ],
+                teleports: [ { x1: 5, y1: 8, x2: 13, y2: 4, color: "#a855f7" } ],
+                plates: { yellow: { x: 12, y: 8, color: "#facc15" } },
+                gates: { yellow: { x: 3, y: 2, color: "#facc15" } },
+                exitPos: { x: 5, y: 2 },
+                log: "Fialové teleporty propojují vzdálená místa.",
+                walkthrough: [
+                    "S Benem projdi do fialového portálu [5,8] – přenese tě nahoru na [13,4].",
+                    "S Benem zatlač balvan [10,4] doleva dolů na zem.",
+                    "S Benem se vrať teleportem dolů a dotlač balvan na Žlutou desku [12,8].",
+                    "S oběma vylezte po levém žebříku nahoru a projděte otevřenou bránou do portálu [5,2]."
+                ]
+            },
+            {
+                id: 4,
+                title: "Zrcadlové sály",
+                grid: [
+                    "################",
+                    "#H...#....#...H#",
+                    "#H...#....#...H#",
+                    "#H####....####H#",
+                    "#H............H#",
+                    "#H............H#",
+                    "#H######.#####H#",
+                    "#H.....#......H#",
+                    "#H.....#......H#",
+                    "################",
+                    "################"
+                ],
+                torches: [ {x:2,y:1}, {x:13,y:1} ],
+                rick: { x: 2, y: 2 }, ben: { x: 13, y: 2 },
+                boulders: [ { id: 0, x: 10, y: 5 } ],
+                levers: {
+                    yellow: { x: 3, y: 2, color: "#facc15" },
+                    green: { x: 13, y: 5, color: "#34d399" }
+                },
+                plates: { magenta: { x: 8, y: 8, color: "#e879f9" } },
+                gates: {
+                    yellow: { x: 14, y: 4, color: "#facc15" },
+                    green: { x: 1, y: 4, color: "#34d399" },
+                    magenta: { x: 4, y: 8, color: "#e879f9" }
+                },
+                teleports: [ { x1: 12, y1: 8, x2: 2, y2: 8, color: "#a855f7" } ],
+                exitPos: { x: 5, y: 8 },
+                log: "Spolupráce je nutná – navzájem si otevírejte cestu.",
+                walkthrough: [
+                    "S Rickem přepni Žlutou páku [3,2] – uvolníš pravý žebřík.",
+                    "S Benem slez o patro níž a přepni Zelenou páku [13,5] – uvolníš levý žebřík.",
+                    "S Benem shoď balvan [10,5] do šachty [8,5] na Purpurovou desku [8,8].",
+                    "S Benem slez dolů a projdi teleportem [12,8] doleva.",
+                    "S oběma hrdiny projděte otevřenou bránou do portálu [5,8]."
+                ]
+            },
+            {
+                id: 5,
+                title: "Motýlí efekt",
+                grid: [
+                    "################",
+                    "#H............H#",
+                    "#H............H#",
+                    "#H####.#######H#",
+                    "#H............H#",
+                    "#H............H#",
+                    "#H#######.####H#",
+                    "#H............H#",
+                    "#H############H#",
+                    "################",
+                    "################"
+                ],
+                torches: [ {x:4,y:1}, {x:11,y:1} ],
+                rick: { x: 2, y: 2 }, ben: { x: 3, y: 2 },
+                boulders: [ { id: 0, x: 6, y: 2 }, { id: 1, x: 8, y: 5 } ],
+                levers: { yellow: { x: 4, y: 2, color: "#facc15" } },
+                plates: {
+                    cyan: { x: 6, y: 5, color: "#22d3ee" },
+                    green: { x: 9, y: 7, color: "#34d399" }
+                },
+                trapdoors: {
+                    yellow: { x: 6, y: 3, color: "#facc15" },
+                    cyan: { x: 9, y: 6, color: "#22d3ee" }
+                },
+                gates: { green: { x: 11, y: 7, color: "#34d399" } },
+                teleports: [ { x1: 2, y1: 7, x2: 10, y2: 7, color: "#a855f7" } ],
+                exitPos: { x: 12, y: 7 },
+                log: "Předpřiprav spodní balvan na propadlo a spusť řetězovou reakci.",
+                walkthrough: [
+                    "S Benem slez na střední patro a posuň balvan [8,5] na zavřené Azurové propadlo [9,5].",
+                    "S Rickem nahoře přepni Žlutou páku [4,2].",
+                    "Horní balvan propadne na Azurovou desku, ta otevře propadlo a druhý balvan sepne Zelenou desku!",
+                    "Projděte teleportem a vstupte do portálu [12,7]."
+                ]
+            },
+            {
+                id: 6,
+                title: "Štafeta",
+                grid: [
+                    "################",
+                    "#H............H#",
+                    "#H............H#",
+                    "#H#####....###H#",
+                    "#H............H#",
+                    "#H....######..H#",
+                    "#H............H#",
+                    "#H..######....H#",
+                    "#H............H#",
+                    "################",
+                    "################"
+                ],
+                torches: [ {x:2,y:1}, {x:13,y:1} ],
+                rick: { x: 2, y: 2 }, ben: { x: 13, y: 8 },
+                boulders: [ { id: 0, x: 5, y: 2 } ],
+                teleports: [ { x1: 12, y1: 2, x2: 10, y2: 4, color: "#22d3ee" } ],
+                plates: { yellow: { x: 5, y: 6, color: "#facc15" } },
+                gates: { yellow: { x: 8, y: 8, color: "#facc15" } },
+                exitPos: { x: 10, y: 8 },
+                log: "Jeden balvan musí urazit cestu přes několik pater.",
+                walkthrough: [
+                    "S Rickem shoď balvan doprava na plošinu [7,4].",
+                    "S Benem vylez nahoru a teleportem [12,2] se přenes na plošinu [10,4].",
+                    "S Benem shoď balvan doleva na Žlutou desku [5,6].",
+                    "S oběma se sejděte dole v portálu [10,8]."
+                ]
+            },
+            {
+                id: 7,
+                title: "Ocelové čelisti",
+                grid: [
+                    "################",
+                    "#..............#",
+                    "#H............H#",
+                    "#H######......H#",
+                    "#H............H#",
+                    "#H.......#####H#",
+                    "#H............H#",
+                    "#H...........E.#",
+                    "#H######^^######",
+                    "################",
+                    "################"
+                ],
+                torches: [ {x:2,y:1}, {x:12,y:1} ],
+                rick: { x: 2, y: 2 }, ben: { x: 13, y: 4 },
+                boulders: [ { id: 0, x: 6, y: 2 }, { id: 1, x: 10, y: 4 } ],
+                levers: {}, plates: {}, trapdoors: {}, gates: {}, teleports: [],
+                exitPos: { x: 13, y: 7 },
+                log: "Kamenné kvádry shozené do bodáků vytvoří bezpečný most.",
+                walkthrough: [
+                    "S Rickem zatlač balvan [6,2] doprava do levých bodáků [8,8].",
+                    "S Benem zatlač balvan [10,4] doleva do pravých bodáků [9,8].",
+                    "Oba bodáky jsou bezpečně zakryté.",
+                    "Slezte po žebřících a přejděte po balvanech do portálu [13,7]."
+                ]
+            },
+            {
+                id: 8,
+                title: "Zrádná propast",
+                grid: [
+                    "################",
+                    "#..............#",
+                    "##............H#",
+                    "##.......#####H#",
+                    "##............H#",
+                    "##..####.#####H#",
+                    "##............H#",
+                    "##..E.........H#",
+                    "########^#####H#",
+                    "################",
+                    "################"
+                ],
+                torches: [ {x:12,y:1}, {x:4,y:4} ],
+                rick: { x: 13, y: 2 }, ben: { x: 13, y: 7 },
+                boulders: [ { id: 0, x: 10, y: 2 } ],
+                levers: { yellow: { x: 12, y: 7, color: "#facc15" } },
+                plates: {},
+                trapdoors: { yellow: { x: 8, y: 5, color: "#facc15" } },
+                gates: {}, teleports: [],
+                exitPos: { x: 4, y: 7 },
+                log: "Otevři propadlo a nech balvan zneškodnit bodáky hluboko dole.",
+                walkthrough: [
+                    "S Benem přepni Žlutou páku [12,7] – otevře se propadlo [8,5].",
+                    "S Rickem shoď balvan [10,2] doleva – proletí propadlem a zacpe bodák [8,8].",
+                    "Slezte dolů a přejděte přes zakrytý bodák do portálu [4,7]."
+                ]
+            },
+            {
+                id: 9,
+                title: "Pochybná zkratka",
+                grid: [
+                    "################",
+                    "#H.......#....H#",
+                    "#H.......#.E..H#",
+                    "#H####...#####H#",
+                    "#H............H#",
+                    "#H............H#",
+                    "#H####^#######H#",
+                    "#H############H#",
+                    "#H............H#",
+                    "################",
+                    "################"
+                ],
+                torches: [ {x:4,y:1}, {x:7,y:4} ],
+                rick: { x: 2, y: 2 }, ben: { x: 11, y: 5 },
+                boulders: [ { id: 0, x: 5, y: 2 }, { id: 1, x: 8, y: 5 } ],
+                levers: { cyan: { x: 3, y: 2, color: "#22d3ee" } },
+                plates: { green: { x: 4, y: 5, color: "#34d399" } },
+                gates: {
+                    cyan: { x: 13, y: 2, color: "#22d3ee" },
+                    green: { x: 12, y: 2, color: "#34d399" }
+                },
+                teleports: [],
+                exitPos: { x: 11, y: 2 },
+                log: "První balvan vyplní bodák, druhý přes něj přetlačíš na spínač.",
+                walkthrough: [
+                    "S Rickem nahoře přepni Azurovou páku [3,2].",
+                    "S Rickem shoď horní balvan doprava do bodáku [6,6].",
+                    "S Benem přetlač druhý balvan doleva přes zaplněný bodák až na Zelenou desku [4,5].",
+                    "Vylezte po pravém žebříku nahoru do portálu [11,2]."
+                ]
+            },
+            {
+                id: 10,
+                title: "Tichá oběť",
+                grid: [
+                    "################",
+                    "#H............H#",
+                    "#H.....#######H#",
+                    "#H............H#",
+                    "#H####.#######H#",
+                    "#H............H#",
+                    "#H............H#",
+                    "#H####^#######H#",
+                    "#H....#...#.E.H#",
+                    "################",
+                    "################"
+                ],
+                torches: [ {x:3,y:1}, {x:11,y:5} ],
+                rick: { x: 12, y: 1 }, ben: { x: 4, y: 8 },
+                boulders: [ { id: 0, x: 8, y: 1 }, { id: 1, x: 8, y: 3 } ],
+                levers: { yellow: { x: 3, y: 8, color: "#facc15" } },
+                plates: { magenta: { x: 5, y: 6, color: "#e879f9" } },
+                trapdoors: { yellow: { x: 6, y: 4, color: "#facc15" } },
+                gates: { magenta: { x: 13, y: 8, color: "#e879f9" } },
+                exitPos: { x: 12, y: 8 },
+                log: "Jeden balvan se obětuje do bodáku, druhý dopadne na něj a poslouží k sepnutí desky.",
+                walkthrough: [
+                    "S Benem dole přepni Žlutou páku [3,8] – otevře se propadlo [6,4].",
+                    "S Rickem shoď horní balvan [8,1] doleva do bodáku [6,7].",
+                    "S Rickem shoď druhý balvan [8,3] doleva – dopadne na první balvan na [6,6].",
+                    "S Rickem slez dolů a zatlač tento balvan doleva na Purpurovou desku [5,6].",
+                    "Oba projděte otevřenou bránou do portálu [12,8]."
+                ]
+            },
+            {
+                id: 11,
+                title: "Mechanická šachta",
+                grid: [
+                    "################",
+                    "#H............H#",
+                    "#H............H#",
+                    "#H###...######H#",
+                    "#H............H#",
+                    "#H............H#",
+                    "#H............H#",
+                    "#H######...###H#",
+                    "#H.....#E.....H#",
+                    "#H.....########",
+                    "################"
+                ],
+                torches: [ {x:3,y:1}, {x:12,y:1} ],
+                rick: { x: 2, y: 2 }, ben: { x: 13, y: 2 },
+                boulders: [ { id: 0, x: 11, y: 2 } ],
+                lifts: [ { id: "yellow", x1: 4, x2: 5, yTop: 3, yBottom: 7, curY: 7, targetY: 7, drawY: 7, color: "#facc15" } ],
+                levers: { yellow: { x: 13, y: 6, color: "#facc15" } },
+                plates: { cyan: { x: 12, y: 6, color: "#22d3ee" } },
+                gates: { cyan: { x: 10, y: 7, color: "#22d3ee" } },
+                exitPos: { x: 8, y: 8 },
+                log: "Využij pohyblivou plošinu výtahu k překonání hluboké propasti v šachtě.",
+                walkthrough: [
+                    "S Benem slez po pravém žebříku na [14,6] a přepni Žlutou páku [13,6] – výtah vyjede nahoru.",
+                    "S Rickem přejdi po výtahu doprava a shoď balvan [11,2] dolů na [13,6].",
+                    "S Benem posuň balvan doleva na Azurovou desku [12,6] – otevře se Azurová brána dole.",
+                    "S Benem přepni Žlutou páku zpět (výtah sjede).",
+                    "S oběma slezte dolů na [14,7] a projděte bránou do portálu [8,8]."
+                ]
+            },
+            {
+                id: 12,
+                title: "Šípkový labyrint",
+                grid: [
+                    "################",
+                    "#..............#",
+                    "#..............#",
+                    "#..............#",
+                    "#.#####.######.#",
+                    "#.###.#.#.##.#.#",
+                    "#.###.#.#.##.#.#",
+                    "#.###.#.#.##.#.#",
+                    "#.....#..E#....#",
+                    "################",
+                    "################"
+                ],
+                torches: [ {x:4, y:2}, {x:11, y:2}, {x:7, y:2} ],
+                rick: { x: 3, y: 8 }, ben: { x: 12, y: 8 },
+                boulders: [],
+                oneWays: [
+                    { x: 1, y: 8, dir: "up" }, { x: 1, y: 7, dir: "up" }, { x: 1, y: 6, dir: "up" }, { x: 1, y: 5, dir: "up" }, { x: 1, y: 4, dir: "up" }, { x: 1, y: 3, dir: "up" },
+                    { x: 5, y: 3, dir: "right" }, { x: 6, y: 3, dir: "right" },
+                    { x: 14, y: 8, dir: "up" }, { x: 14, y: 7, dir: "up" }, { x: 14, y: 6, dir: "up" }, { x: 14, y: 5, dir: "up" }, { x: 14, y: 4, dir: "up" }, { x: 14, y: 3, dir: "up" },
+                    { x: 10, y: 3, dir: "left" }, { x: 9, y: 3, dir: "left" }, { x: 8, y: 3, dir: "left" },
+                    { x: 7, y: 3, dir: "down" }, { x: 7, y: 4, dir: "down" }, { x: 7, y: 5, dir: "down" }, { x: 7, y: 6, dir: "down" }, { x: 7, y: 7, dir: "down" }
+                ],
+                levers: {
+                    yellow: { x: 4, y: 3, color: "#facc15" },
+                    cyan: { x: 11, y: 3, color: "#22d3ee" }
+                },
+                gates: {
+                    yellow: { x: 13, y: 8, color: "#facc15" },
+                    cyan: { x: 8, y: 8, color: "#22d3ee" }
+                },
+                plates: {},
+                exitPos: { x: 9, y: 8 },
+                log: "Pocta originálnímu Levelu 15 – propleť se jednosměrkami a sjeď centrální šachtou do cíle.",
+                walkthrough: [
+                    "S Rickem vylez po levé stoupací šachtě [1,8..3] nahoru, přepni Žlutou páku [4,3] a sjeď šachtou [7,3..7] dolů.",
+                    "S Benem projdi otevřenou Žlutou bránou [13,8], vyšplhej pravou šachtou nahoru a přepni Azurovou páku [11,3].",
+                    "S Benem pokračuj doleva a sjeď centrální šachtou [7,3..7] dolů k Rickovi.",
+                    "Oba projděte otevřenou Azurovou bránou [8,8] do portálu [9,8]!"
+                ]
+            }
+        ];
+
+        /* ============================================================================
+         * RETRO ZVUKOVÝ ENGINE (ČISTÉ WEB AUDIO API – 100% OFFLINE)
+         * ============================================================================ */
+        class RetroSoundEngine {
+            constructor() {
+                this.ctx = null;
+                this.muted = false;
+            }
+            init() {
+                if (!this.ctx) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    if (AudioCtx) this.ctx = new AudioCtx();
+                }
+                if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+            }
+            toggleMute() {
+                this.muted = !this.muted;
+                const icon = document.getElementById('soundStatusIcon');
+                if (icon) icon.textContent = this.muted ? '🔇' : '🔊';
+            }
+            playTone(type, f1, f2, v1, v2, dur, schedule = [0]) {
+                if (this.muted) return; this.init(); if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                schedule.forEach(time => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = type;
+                    osc.frequency.setValueAtTime(f1, now + time);
+                    if (f2) osc.frequency.exponentialRampToValueAtTime(f2, now + time + dur * 0.9);
+                    gain.gain.setValueAtTime(v1, now + time);
+                    gain.gain.exponentialRampToValueAtTime(v2, now + time + dur);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now + time);
+                    osc.stop(now + time + dur);
+                });
+            }
+            playStep() { this.playTone('triangle', 135, 65, 0.12, 0.001, 0.06); }
+            playClimb() { this.playTone('square', 190, 260, 0.06, 0.001, 0.065); }
+            playPush() { this.playTone('sawtooth', 92, 62, 0.16, 0.001, 0.15); }
+            playThud() { this.playTone('sine', 110, 28, 0.32, 0.001, 0.24); }
+            playSwitchChar() { this.playTone('triangle', 440, 587, 0.1, 0.001, 0.12); }
+            playLever() { this.playTone('square', 480, null, 0.1, 0.001, 0.08, [0, 0.045, 0.09]); }
+            playTeleport() { this.playTone('sine', 800, 100, 0.15, 0.001, 0.35); }
+            playLift() { this.playTone('triangle', 90, 140, 0.12, 0.001, 0.22); }
+            playDeath() {
+                if (this.muted) return; this.init(); if (!this.ctx) return;
+                const notes = [330, 293.66, 261.63, 196, 130.81];
+                notes.forEach((f, i) => this.playTone('sawtooth', f, null, 0.14, 0.001, 0.15, [i * 0.09]));
+            }
+            playVictory() {
+                if (this.muted) return; this.init(); if (!this.ctx) return;
+                const mel = [ {f:261, t:0, d:0.14}, {f:329, t:0.14, d:0.14}, {f:392, t:0.28, d:0.14}, {f:523, t:0.42, d:0.25}, {f:392, t:0.68, d:0.14}, {f:523, t:0.82, d:0.45} ];
+                mel.forEach(n => this.playTone('square', n.f, null, 0.12, 0.001, n.d, [n.t]));
+            }
+        }
+        const soundFX = new RetroSoundEngine();
+
+        /* ============================================================================
+         * HERNA A FYZIKÁLNÍ JÁDRO
+         * ============================================================================ */
+        const COLS = 16, ROWS = 11, TILE = 48;
+
+        class QuadraxGame {
+            constructor() {
+                this.canvas = document.getElementById('gameCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.currentLevelIdx = 0;
+                this.progress = JSON.parse(localStorage.getItem('quadrax_offline_prog') || '{}');
+                this.godMode = false;
+                this.tick = 0;
+                this.scale = 1;
+                this.crtEnabled = true;
+                this.initParticles();
+                this.loadLevel(0);
+                requestAnimationFrame(() => this.renderLoop());
+            }
+
+            setResolution(scale) {
+                this.scale = scale;
+                this.canvas.width = 768 * scale;
+                this.canvas.height = 528 * scale;
+                this.ctx.imageSmoothingEnabled = false;
+                this.setLog(`Rozlišení Canvasu nastaveno na ${scale}x.`);
+                document.getElementById('settingsModal').classList.add('hidden');
+            }
+
+            toggleCRT() {
+                this.crtEnabled = !this.crtEnabled;
+                document.getElementById('crtEffect').style.display = this.crtEnabled ? 'block' : 'none';
+            }
+
+            toggleFullscreen() {
+                if (!document.fullscreenElement) {
+                    document.documentElement.requestFullscreen().catch(() => {});
+                } else {
+                    document.exitFullscreen().catch(() => {});
+                }
+            }
+
+            initParticles() {
+                this.particles = Array.from({length: 45}, () => ({
+                    x: Math.random() * 768, y: Math.random() * 528,
+                    vx: (Math.random() - 0.5) * 0.3, vy: -0.25 - Math.random() * 0.4,
+                    size: Math.random() < 0.5 ? 2 : 3, alpha: 0.2 + Math.random() * 0.5,
+                    color: Math.random() < 0.7 ? '#fbbf24' : '#38bdf8'
+                }));
+            }
+
+            loadLevel(idx) {
+                if (idx < 0 || idx >= LEVELS.length) return;
+                this.currentLevelIdx = idx;
+                this.lvl = JSON.parse(JSON.stringify(LEVELS[idx]));
+                this.restartLevel(false);
+            }
+
+            loadNextLevel() {
+                if (this.currentLevelIdx + 1 < LEVELS.length) {
+                    this.loadLevel(this.currentLevelIdx + 1);
+                } else {
+                    this.showLevelSelect();
+                }
+            }
+
+            restartLevel(playSfx = true) {
+                if (playSfx) soundFX.playLever();
+                
+                this.explorers = [
+                    { id: 0, name: "Rick", color: "#38bdf8", hat: "#fde047", x: this.lvl.rick.x, y: this.lvl.rick.y, drawX: this.lvl.rick.x, drawY: this.lvl.rick.y, facing: 1, alive: true, stepFrame: 0, tpCooldown: false },
+                    { id: 1, name: "Ben", color: "#f43f5e", hat: "#d97706", x: this.lvl.ben.x, y: this.lvl.ben.y, drawX: this.lvl.ben.x, drawY: this.lvl.ben.y, facing: 1, alive: true, stepFrame: 0, tpCooldown: false }
+                ];
+                this.activeIdx = 0;
+                this.boulders = (this.lvl.boulders || []).map(b => ({ ...b, drawX: b.x, drawY: b.y }));
+                
+                for(const k in this.lvl.levers) this.lvl.levers[k].active = false;
+                for(const k in this.lvl.plates) this.lvl.plates[k].active = false;
+                for(const k in this.lvl.gates) { this.lvl.gates[k].open = false; this.lvl.gates[k].openAnim = 0; }
+                if (this.lvl.trapdoors) {
+                    for(const k in this.lvl.trapdoors) { this.lvl.trapdoors[k].open = false; this.lvl.trapdoors[k].openAnim = 0; }
+                }
+                if (this.lvl.lifts) {
+                    this.lvl.lifts.forEach(l => {
+                        l.curY = l.yBottom; l.targetY = l.yBottom; l.drawY = l.yBottom;
+                    });
+                }
+
+                this.steps = 0;
+                this.undoStack = [];
+                this.won = false;
+                this.gameOver = false;
+                this.screenShake = 0;
+
+                document.getElementById('deathOverlay').classList.add('hidden');
+                document.getElementById('victoryOverlay').classList.add('hidden');
+                document.getElementById('headerLevelId').textContent = (this.currentLevelIdx + 1);
+                document.getElementById('headerLevelTitle').textContent = this.lvl.title;
+
+                this.updateMechanisms(true);
+                this.setLog(this.lvl.log);
+                this.updateUI();
+            }
+
+            toggleGodMode() {
+                this.godMode = !this.godMode;
+                const btn = document.getElementById('godModeBtn');
+                btn.textContent = this.godMode ? 'GOD MODE: ON' : 'GOD MODE: OFF';
+                btn.style.color = this.godMode ? '#fca5a5' : '#f87171';
+                btn.style.background = this.godMode ? '#450a0a' : '';
+                this.showLevelSelect();
+            }
+
+            showLevelSelect() {
+                const grid = document.getElementById('levelGrid');
+                grid.innerHTML = '';
+                LEVELS.forEach((l, i) => {
+                    const locked = !this.godMode && i > 0 && !this.progress[LEVELS[i-1].id];
+                    const best = this.progress[l.id]?.bestSteps || '-';
+                    const card = document.createElement('div');
+                    card.className = `level-card ${locked ? 'locked' : ''}`;
+                    card.innerHTML = `
+                        <div class="flex justify-between items-center" style="margin-bottom: 4px;">
+                            <span class="font-pixel" style="font-size: 10px; color: #facc15;">LEVEL ${i+1}</span>
+                            <span>${locked ? '🔒' : '🔓'}</span>
+                        </div>
+                        <div style="font-weight: bold; font-size: 13px; color: #f5f5f4; margin-bottom: 4px;">${l.title}</div>
+                        <div style="font-size: 11px; color: #a8a29e;">Nejlepší: <strong class="font-dos" style="color: #34d399; font-size: 14px;">${best}</strong> kroků</div>
+                    `;
+                    if (!locked) {
+                        card.onclick = () => {
+                            this.loadLevel(i);
+                            document.getElementById('levelSelectModal').classList.add('hidden');
+                        };
+                    }
+                    grid.appendChild(card);
+                });
+                document.getElementById('levelSelectModal').classList.remove('hidden');
+            }
+
+            showWalkthrough() {
+                const modal = document.getElementById('walkthroughModal');
+                const list = document.getElementById('walkthroughList');
+                document.getElementById('walkthroughText').textContent = this.lvl.log;
+                list.innerHTML = this.lvl.walkthrough.map(step => `<li>${step}</li>`).join('');
+                modal.classList.remove('hidden');
+            }
+
+            saveSnapshot() {
+                this.undoStack.push({
+                    explorers: this.explorers.map(e => ({ x: e.x, y: e.y, facing: e.facing, alive: e.alive })),
+                    activeIdx: this.activeIdx,
+                    boulders: this.boulders.map(b => ({ x: b.x, y: b.y })),
+                    levers: JSON.parse(JSON.stringify(this.lvl.levers)),
+                    lifts: this.lvl.lifts ? this.lvl.lifts.map(l => ({ curY: l.curY, targetY: l.targetY })) : null,
+                    steps: this.steps
+                });
+                if (this.undoStack.length > 300) this.undoStack.shift();
+            }
+
+            undo() {
+                if (this.undoStack.length === 0) return;
+                soundFX.playStep();
+                const s = this.undoStack.pop();
+                s.explorers.forEach((se, i) => Object.assign(this.explorers[i], se));
+                this.activeIdx = s.activeIdx;
+                s.boulders.forEach((sb, i) => { this.boulders[i].x = sb.x; this.boulders[i].y = sb.y; });
+                this.lvl.levers = s.levers;
+                if (s.lifts && this.lvl.lifts) {
+                    s.lifts.forEach((sl, i) => {
+                        this.lvl.lifts[i].curY = sl.curY;
+                        this.lvl.lifts[i].targetY = sl.targetY;
+                    });
+                }
+                this.steps = s.steps;
+                this.gameOver = false;
+                this.won = false;
+                document.getElementById('deathOverlay').classList.add('hidden');
+                document.getElementById('victoryOverlay').classList.add('hidden');
+                this.updateMechanisms(true);
+                this.setLog("Tah vrácen zpět.");
+                this.updateUI();
+            }
+
+            inBounds(x, y) { return x >= 0 && x < COLS && y >= 0 && y < ROWS; }
+            getBaseTile(x, y) { return this.inBounds(x, y) ? this.lvl.grid[y][x] : '#'; }
+            isLadder(x, y) { return this.getBaseTile(x, y) === 'H'; }
+            getClosedGateAt(x, y) { for (const k in this.lvl.gates) if (this.lvl.gates[k].x === x && this.lvl.gates[k].y === y && !this.lvl.gates[k].open) return this.lvl.gates[k]; return null; }
+            getClosedTrapdoorAt(x, y) { if(!this.lvl.trapdoors) return null; for (const k in this.lvl.trapdoors) if (this.lvl.trapdoors[k].x === x && this.lvl.trapdoors[k].y === y && !this.lvl.trapdoors[k].open) return this.lvl.trapdoors[k]; return null; }
+            getBoulderAt(x, y) { return this.boulders.find(b => b.x === x && b.y === y) || null; }
+            getExplorerAt(x, y) { return this.explorers.find(e => e.alive && e.x === x && e.y === y) || null; }
+            getLiftAt(x, y) {
+                if (!this.lvl.lifts) return null;
+                return this.lvl.lifts.find(l => x >= l.x1 && x <= l.x2 && l.curY === y) || null;
+            }
+            getOneWayAt(x, y) {
+                if (!this.lvl.oneWays) return null;
+                return this.lvl.oneWays.find(ow => ow.x === x && ow.y === y) || null;
+            }
+
+            isSolidForExplorer(x, y) {
+                return this.getBaseTile(x, y) === '#' || this.getClosedGateAt(x, y) || this.getBoulderAt(x, y) || this.getClosedTrapdoorAt(x, y) || this.getLiftAt(x, y);
+            }
+            
+            isExplorerSupported(x, y) {
+                if (this.isLadder(x, y)) return true;
+                const owHere = this.getOneWayAt(x, y);
+                if (owHere && (owHere.dir === 'up' || owHere.dir === 'left' || owHere.dir === 'right')) return true;
+
+                const by = y + 1;
+                if (this.getBaseTile(x, by) === '#') return true;
+                if (this.getClosedGateAt(x, by)) return true;
+                if (this.getBoulderAt(x, by)) return true;
+                if (this.isLadder(x, by)) return true;
+                if (this.getClosedTrapdoorAt(x, by)) return true;
+                if (this.getLiftAt(x, by)) return true;
+
+                const owBelow = this.getOneWayAt(x, by);
+                if (owBelow && (owBelow.dir === 'left' || owBelow.dir === 'right' || owBelow.dir === 'up')) return true;
+
+                return false;
+            }
+
+            isTileEmptyForBoulder(x, y) {
+                if (!this.inBounds(x, y)) return false;
+                const ow = this.getOneWayAt(x, y);
+                if (ow && ow.dir !== 'down') return false;
+                return !(this.getBaseTile(x, y) === '#' || this.getClosedGateAt(x, y) || this.getBoulderAt(x, y) || this.getExplorerAt(x, y) || this.getClosedTrapdoorAt(x, y) || this.getLiftAt(x, y));
+            }
+
+            selectExplorer(idx) {
+                if (this.gameOver || this.won || this.activeIdx === idx) return;
+                this.activeIdx = idx;
+                soundFX.playSwitchChar();
+                this.setLog(`Aktivní: ${this.explorers[idx].name}`);
+                this.updateUI();
+            }
+            switchExplorer() { this.selectExplorer(1 - this.activeIdx); }
+
+            triggerAction() {
+                if (this.gameOver || this.won) return;
+                const e = this.explorers[this.activeIdx];
+                for (const k in this.lvl.levers) {
+                    const l = this.lvl.levers[k];
+                    if (l.x === e.x && l.y === e.y) {
+                        this.saveSnapshot();
+                        l.active = !l.active;
+                        this.steps++;
+                        soundFX.playLever();
+                        this.updateMechanisms();
+                        this.resolvePhysics();
+                        this.setLog(`${e.name} přepnul páku.`);
+                        this.updateUI();
+                        return;
+                    }
+                }
+            }
+
+            handleMove(dx, dy) {
+                if (this.gameOver || this.won) return;
+                const e = this.explorers[this.activeIdx];
+                if (!e.alive) return;
+
+                if (dy !== 0) {
+                    const ty = e.y + dy;
+                    if (!this.inBounds(e.x, ty)) return;
+                    const currOw = this.getOneWayAt(e.x, e.y);
+                    const targetOw = this.getOneWayAt(e.x, ty);
+
+                    if (dy === -1) {
+                        const canClimbUp = this.isLadder(e.x, e.y) || this.isLadder(e.x, ty) ||
+                                           (targetOw && targetOw.dir === 'up') ||
+                                           (currOw && currOw.dir === 'up');
+                        if (!canClimbUp) return;
+                        if (targetOw && (targetOw.dir === 'down' || targetOw.dir === 'left' || targetOw.dir === 'right')) return;
+                    }
+
+                    if (dy === 1) {
+                        if (currOw && currOw.dir === 'up') return;
+                        if (targetOw && targetOw.dir === 'up') return;
+                        const canClimbDown = this.isLadder(e.x, e.y) || this.isLadder(e.x, ty) ||
+                                             (targetOw && targetOw.dir === 'down') ||
+                                             (currOw && currOw.dir === 'down');
+                        if (!canClimbDown) return;
+                    }
+
+                    if (this.isSolidForExplorer(e.x, ty)) return;
+                    this.saveSnapshot();
+                    e.y = ty;
+                    e.stepFrame++;
+                    this.steps++;
+                    e.tpCooldown = false;
+                    soundFX.playClimb();
+                    this.updateMechanisms();
+                    this.resolvePhysics();
+                    this.checkTeleports(e);
+                    this.updateUI();
+                    return;
+                }
+
+                if (dx !== 0) {
+                    e.facing = dx;
+                    const nx = e.x + dx, ny = e.y;
+                    if (!this.inBounds(nx, ny)) return;
+
+                    const currOw = this.getOneWayAt(e.x, e.y);
+                    const targetOw = this.getOneWayAt(nx, ny);
+
+                    if (dx === 1) {
+                        if (currOw && currOw.dir === 'left') return;
+                        if (targetOw && targetOw.dir === 'left') return;
+                    }
+                    if (dx === -1) {
+                        if (currOw && currOw.dir === 'right') return;
+                        if (targetOw && targetOw.dir === 'right') return;
+                    }
+
+                    const b = this.getBoulderAt(nx, ny);
+                    if (b) {
+                        if (this.isExplorerSupported(e.x, e.y) && !this.getBoulderAt(nx, ny-1) && this.isTileEmptyForBoulder(nx+dx, ny)) {
+                            this.saveSnapshot();
+                            b.x = nx+dx; e.x = nx; e.stepFrame++; this.steps++;
+                            e.tpCooldown = false;
+                            soundFX.playPush();
+                            this.updateMechanisms();
+                            this.resolvePhysics();
+                            this.checkTeleports(e);
+                            this.updateUI();
+                            return;
+                        }
+                        if (this.isExplorerSupported(e.x, e.y) && !this.isSolidForExplorer(e.x, ny-1) && !this.isSolidForExplorer(nx, ny-1)) {
+                            this.saveSnapshot();
+                            e.x = nx; e.y = ny-1; e.stepFrame++; this.steps++;
+                            e.tpCooldown = false;
+                            soundFX.playStep();
+                            this.updateMechanisms();
+                            this.resolvePhysics();
+                            this.checkTeleports(e);
+                            this.updateUI();
+                            return;
+                        }
+                        return;
+                    }
+
+                    if (!this.isSolidForExplorer(nx, ny)) {
+                        this.saveSnapshot();
+                        e.x = nx; e.stepFrame++; this.steps++;
+                        e.tpCooldown = false;
+                        soundFX.playStep();
+                        this.updateMechanisms();
+                        this.resolvePhysics();
+                        this.checkTeleports(e);
+                        this.updateUI();
+                        return;
+                    }
+
+                    if (this.isExplorerSupported(e.x, e.y) && !this.isSolidForExplorer(e.x, ny-1) && !this.isSolidForExplorer(nx, ny-1)) {
+                        this.saveSnapshot();
+                        e.x = nx; e.y = ny-1; e.stepFrame++; this.steps++;
+                        e.tpCooldown = false;
+                        soundFX.playStep();
+                        this.updateMechanisms();
+                        this.resolvePhysics();
+                        this.checkTeleports(e);
+                        this.updateUI();
+                    }
+                }
+            }
+
+            checkTeleports(e) {
+                if (!this.lvl.teleports) return;
+                for (const tp of this.lvl.teleports) {
+                    if (e.x === tp.x1 && e.y === tp.y1 && !e.tpCooldown) {
+                        e.x = tp.x2; e.y = tp.y2; e.drawX = tp.x2; e.drawY = tp.y2;
+                        e.tpCooldown = true; soundFX.playTeleport(); this.resolvePhysics(); return;
+                    }
+                    if (e.x === tp.x2 && e.y === tp.y2 && !e.tpCooldown) {
+                        e.x = tp.x1; e.y = tp.y1; e.drawX = tp.x1; e.drawY = tp.y1;
+                        e.tpCooldown = true; soundFX.playTeleport(); this.resolvePhysics(); return;
+                    }
+                }
+            }
+
+            updateMechanisms(inst = false) {
+                for(const k in this.lvl.plates) {
+                    this.lvl.plates[k].active = (this.getBoulderAt(this.lvl.plates[k].x, this.lvl.plates[k].y) || this.getExplorerAt(this.lvl.plates[k].x, this.lvl.plates[k].y)) != null;
+                }
+                for(const k in this.lvl.gates) {
+                    const op = (this.lvl.levers[k]?.active || this.lvl.plates[k]?.active);
+                    this.lvl.gates[k].open = op;
+                    if (inst) this.lvl.gates[k].openAnim = op ? 1 : 0;
+                }
+                if (this.lvl.trapdoors) {
+                    for(const k in this.lvl.trapdoors) {
+                        const op = (this.lvl.levers[k]?.active || this.lvl.plates[k]?.active);
+                        this.lvl.trapdoors[k].open = op;
+                        if (inst) this.lvl.trapdoors[k].openAnim = op ? 1 : 0;
+                    }
+                }
+                if (this.lvl.lifts) {
+                    this.lvl.lifts.forEach(lift => {
+                        const op = (this.lvl.levers[lift.id]?.active || this.lvl.plates[lift.id]?.active);
+                        const oldY = lift.curY;
+                        lift.targetY = op ? lift.yTop : lift.yBottom;
+                        lift.curY = lift.targetY;
+                        if (inst) lift.drawY = lift.curY;
+                        
+                        if (oldY !== lift.curY) {
+                            soundFX.playLift();
+                            const deltaY = lift.curY - oldY;
+                            this.explorers.forEach(e => {
+                                if (e.alive && e.x >= lift.x1 && e.x <= lift.x2 && e.y === oldY - 1) {
+                                    e.y += deltaY; e.drawY += deltaY;
+                                }
+                            });
+                            this.boulders.forEach(b => {
+                                if (b.x >= lift.x1 && b.x <= lift.x2 && b.y === oldY - 1) {
+                                    b.y += deltaY; b.drawY += deltaY;
+                                }
+                            });
+                        }
+                    });
+                }
+            }
+
+            resolvePhysics() {
+                let anyFell = false;
+                let changed = true;
+                while (changed) {
+                    changed = false;
+                    for (const b of this.boulders) {
+                        let d = 0;
+                        while (this.isTileEmptyForBoulder(b.x, b.y + 1)) {
+                            b.y++; d++;
+                        }
+                        if (d > 0) {
+                            anyFell = true;
+                            changed = true;
+                        }
+                    }
+                    this.updateMechanisms();
+                }
+                if (anyFell) { soundFX.playThud(); this.screenShake = 8; }
+
+                for (const e of this.explorers) {
+                    if (!e.alive) continue;
+                    let d = 0;
+                    let inDownChute = false;
+                    while (!this.isExplorerSupported(e.x, e.y)) {
+                        if (this.isSolidForExplorer(e.x, e.y+1)) break;
+                        const curOw = this.getOneWayAt(e.x, e.y);
+                        if (curOw && curOw.dir === 'down') inDownChute = true;
+                        e.y++; d++;
+                        if (this.getBaseTile(e.x, e.y) === '^' && !this.getBoulderAt(e.x, e.y)) break;
+                    }
+                    
+                    if (inDownChute) d = 0;
+
+                    if (this.getBaseTile(e.x, e.y) === '^' && !this.getBoulderAt(e.x, e.y)) {
+                        e.alive = false; this.gameOver = true; this.screenShake = 12; soundFX.playDeath();
+                        document.getElementById('deathReasonText').textContent = `${e.name} spadl na smrtící bodáky!`;
+                        document.getElementById('deathOverlay').classList.remove('hidden');
+                    } else if (d >= 3) {
+                        e.alive = false; this.gameOver = true; this.screenShake = 12; soundFX.playDeath();
+                        document.getElementById('deathReasonText').textContent = `${e.name} spadl z výšky ${d} bloků! Smrtelný pád.`;
+                        document.getElementById('deathOverlay').classList.remove('hidden');
+                    } else if (d > 0) {
+                        soundFX.playStep();
+                    }
+                }
+                this.updateMechanisms();
+
+                if (this.explorers[0].alive && this.explorers[1].alive &&
+                    this.explorers[0].x === this.lvl.exitPos.x && this.explorers[0].y === this.lvl.exitPos.y &&
+                    this.explorers[1].x === this.lvl.exitPos.x && this.explorers[1].y === this.lvl.exitPos.y) {
+                    this.won = true;
+                    soundFX.playVictory();
+                    document.getElementById('victorySteps').textContent = this.steps;
+                    const best = this.progress[this.lvl.id]?.bestSteps || 9999;
+                    if (this.steps < best) {
+                        this.progress[this.lvl.id] = { bestSteps: this.steps };
+                        localStorage.setItem('quadrax_offline_prog', JSON.stringify(this.progress));
+                    }
+                    document.getElementById('victoryBest').textContent = this.progress[this.lvl.id].bestSteps;
+                    document.getElementById('victoryOverlay').classList.remove('hidden');
+                }
+            }
+
+            updateUI() {
+                document.getElementById('stepCounter').textContent = String(this.steps).padStart(3, '0');
+                document.getElementById('undoBtn').disabled = this.undoStack.length === 0;
+                
+                const rb = document.getElementById('selectRickBtn'), bb = document.getElementById('selectBenBtn');
+                if (this.activeIdx === 0) {
+                    rb.style.borderColor = '#38bdf8'; rb.style.background = 'rgba(12, 74, 110, 0.8)';
+                    bb.style.borderColor = '#44403c'; bb.style.background = 'rgba(28, 25, 23, 0.6)';
+                } else {
+                    bb.style.borderColor = '#f43f5e'; bb.style.background = 'rgba(136, 19, 55, 0.8)';
+                    rb.style.borderColor = '#44403c'; rb.style.background = 'rgba(28, 25, 23, 0.6)';
+                }
+            }
+
+            setLog(msg) { document.getElementById('statusLog').textContent = msg; }
+
+            renderLoop() {
+                this.tick++;
+                for (const e of this.explorers) { e.drawX += (e.x - e.drawX) * 0.36; e.drawY += (e.y - e.drawY) * 0.36; }
+                for (const b of this.boulders) { b.drawX += (b.x - b.drawX) * 0.34; b.drawY += (b.y - b.drawY) * 0.34; }
+                for (const k in this.lvl.gates) this.lvl.gates[k].openAnim += ((this.lvl.gates[k].open?1:0) - this.lvl.gates[k].openAnim) * 0.22;
+                if (this.lvl.trapdoors) for (const k in this.lvl.trapdoors) this.lvl.trapdoors[k].openAnim += ((this.lvl.trapdoors[k].open?1:0) - this.lvl.trapdoors[k].openAnim) * 0.25;
+                if (this.lvl.lifts) for (const l of this.lvl.lifts) l.drawY += (l.curY - l.drawY) * 0.25;
+                if (this.screenShake > 0) { this.screenShake *= 0.82; if (this.screenShake < 0.3) this.screenShake = 0; }
+                this.drawScene();
+                requestAnimationFrame(() => this.renderLoop());
+            }
+
+            drawScene() {
+                const ctx = this.ctx; ctx.save();
+                ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                ctx.scale(this.scale, this.scale);
+                
+                if (this.screenShake > 0) {
+                    ctx.translate((Math.random()-0.5)*this.screenShake, (Math.random()-0.5)*this.screenShake);
+                }
+                
+                for(let y=0; y<ROWS; y++) {
+                    for(let x=0; x<COLS; x++) {
+                        const t = this.lvl.grid[y][x];
+                        if (t === '#') this.drawWall(ctx, x, y);
+                        else if (t === '^') this.drawSpikes(ctx, x, y);
+                        else this.drawCave(ctx, x, y);
+                    }
+                }
+                
+                this.lvl.torches?.forEach(t => this.drawTorch(ctx, t.x, t.y));
+                for(let y=0; y<ROWS; y++) for(let x=0; x<COLS; x++) if(this.lvl.grid[y][x] === 'H') this.drawLadder(ctx, x, y);
+                if (this.lvl.oneWays) this.lvl.oneWays.forEach(ow => this.drawOneWay(ctx, ow));
+
+                this.drawExit(ctx, this.lvl.exitPos.x, this.lvl.exitPos.y);
+                for(const k in this.lvl.plates) this.drawPlate(ctx, this.lvl.plates[k]);
+                for(const k in this.lvl.levers) this.drawLever(ctx, this.lvl.levers[k]);
+                if (this.lvl.lifts) for(const l of this.lvl.lifts) this.drawLift(ctx, l);
+                for(const b of this.boulders) this.drawBoulder(ctx, b);
+                for(const k in this.lvl.gates) this.drawGate(ctx, this.lvl.gates[k]);
+                if (this.lvl.trapdoors) for(const k in this.lvl.trapdoors) this.drawTrapdoor(ctx, this.lvl.trapdoors[k]);
+                if (this.lvl.teleports) this.lvl.teleports.forEach(t => { this.drawTeleport(ctx, t.x1, t.y1, t.color); this.drawTeleport(ctx, t.x2, t.y2, t.color); });
+
+                this.drawExplorer(ctx, this.explorers[1-this.activeIdx], false);
+                this.drawExplorer(ctx, this.explorers[this.activeIdx], true);
+                
+                for(const p of this.particles) {
+                    p.x+=p.vx; p.y+=p.vy; if(p.y<10){p.y=528; p.x=Math.random()*768;}
+                    ctx.fillStyle=p.color; ctx.globalAlpha=p.alpha*(0.6+Math.sin(this.tick*0.05+p.x)*0.4); ctx.fillRect(p.x, p.y, p.size, p.size);
+                }
+                ctx.restore();
+            }
+
+            drawCave(ctx, x, y) {
+                const s=(x*37+y*13)%7, px=x*TILE, py=y*TILE;
+                ctx.fillStyle=s%2===0?'#12100e':'#151210'; ctx.fillRect(px,py,TILE,TILE);
+                ctx.strokeStyle='#1c1815'; ctx.lineWidth=1; ctx.strokeRect(px+0.5,py+0.5,TILE-1,TILE/2); ctx.strokeRect(px+0.5,py+TILE/2+0.5,TILE-1,TILE/2);
+            }
+            drawWall(ctx, x, y) {
+                const s=(x*19+y*31)%11, px=x*TILE, py=y*TILE;
+                ctx.fillStyle=s%3===0?'#3d332a':(s%2===0?'#362d25':'#42372d'); ctx.fillRect(px,py,TILE,TILE);
+                ctx.fillStyle='#5c4d3f'; ctx.fillRect(px,py,TILE,3); ctx.fillRect(px,py,3,TILE);
+                ctx.fillStyle='#1e1914'; ctx.fillRect(px,py+TILE-4,TILE,4); ctx.fillRect(px+TILE-4,py,4,TILE);
+                ctx.fillStyle='#2a221c'; ctx.fillRect(px+6,py+6,TILE-12,2); ctx.fillRect(px+6,py+6,2,TILE-12);
+            }
+            drawSpikes(ctx, x, y) {
+                this.drawCave(ctx, x, y);
+                const px = x * TILE, py = y * TILE;
+                ctx.fillStyle = '#94a3b8';
+                for(let i=0; i<3; i++) {
+                    ctx.beginPath();
+                    ctx.moveTo(px + 4 + i*14, py + TILE); ctx.lineTo(px + 11 + i*14, py + TILE - 20); ctx.lineTo(px + 18 + i*14, py + TILE);
+                    ctx.fill();
+                }
+                ctx.fillStyle = '#7f1d1d';
+                for(let i=0; i<3; i++) {
+                    ctx.beginPath();
+                    ctx.moveTo(px + 9 + i*14, py + TILE - 12); ctx.lineTo(px + 11 + i*14, py + TILE - 20); ctx.lineTo(px + 13 + i*14, py + TILE - 12);
+                    ctx.fill();
+                }
+            }
+            drawOneWay(ctx, ow) {
+                const px = ow.x * TILE, py = ow.y * TILE, cx = px + TILE / 2, cy = py + TILE / 2;
+                ctx.fillStyle = '#1c1917'; ctx.fillRect(px + 1, py + 1, TILE - 2, TILE - 2);
+                ctx.strokeStyle = '#44403c'; ctx.lineWidth = 2; ctx.strokeRect(px + 2, py + 2, TILE - 4, TILE - 4);
+                
+                ctx.save(); ctx.translate(cx, cy);
+                let angle = 0;
+                if (ow.dir === 'right') angle = 0;
+                else if (ow.dir === 'down') angle = Math.PI / 2;
+                else if (ow.dir === 'left') angle = Math.PI;
+                else if (ow.dir === 'up') angle = -Math.PI / 2;
+                ctx.rotate(angle);
+                
+                ctx.fillStyle = '#f59e0b'; ctx.strokeStyle = '#fef08a'; ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(12, 0); ctx.lineTo(-4, -11); ctx.lineTo(-4, -5); ctx.lineTo(-12, -5);
+                ctx.lineTo(-12, 5); ctx.lineTo(-4, 5); ctx.lineTo(-4, 11); ctx.closePath();
+                ctx.fill(); ctx.stroke();
+                
+                const flow = (this.tick * 0.6) % 12 - 6;
+                ctx.fillStyle = '#ffffff'; ctx.fillRect(flow - 2, -2, 4, 4);
+                ctx.restore();
+            }
+            drawTorch(ctx, x, y) {
+                const cx=x*TILE+TILE/2, cy=y*TILE+TILE/2+4, fl=Math.sin(this.tick*0.22+x)*4;
+                const g=ctx.createRadialGradient(cx,cy-8,4,cx,cy-8,72+fl);
+                g.addColorStop(0,'rgba(251,191,36,0.28)'); g.addColorStop(1,'transparent');
+                ctx.fillStyle=g; ctx.beginPath(); ctx.arc(cx,cy-8,72+fl,0,Math.PI*2); ctx.fill();
+                ctx.fillStyle='#ea580c'; ctx.fillRect(cx-3,cy-8,6,10);
+                ctx.fillStyle='#facc15'; ctx.fillRect(cx-1,cy-6,2,6);
+            }
+            drawLadder(ctx, x, y) {
+                ctx.fillStyle='#78350f'; ctx.fillRect(x*TILE+9,y*TILE,5,TILE); ctx.fillRect(x*TILE+TILE-14,y*TILE,5,TILE);
+                for(let r=6; r<TILE; r+=12){ ctx.fillStyle='#d97706'; ctx.fillRect(x*TILE+11,y*TILE+r,TILE-22,3); }
+            }
+            drawExit(ctx, x, y) {
+                const px=x*TILE, py=y*TILE;
+                ctx.fillStyle='#082f49'; ctx.fillRect(px+11,py+9,TILE-22,TILE-9);
+                ctx.strokeStyle='#38bdf8'; ctx.lineWidth=2; ctx.strokeRect(px+13,py+11,TILE-26,TILE-13);
+            }
+            drawPlate(ctx, p) {
+                const d=p.active?4:0, px=p.x*TILE, py=p.y*TILE;
+                ctx.fillStyle='#27272a'; ctx.fillRect(px+6,py+TILE-5,TILE-12,5);
+                ctx.fillStyle=p.color; ctx.fillRect(px+10,py+TILE-9+d,TILE-20,5-d*0.5);
+            }
+            drawLever(ctx, l) {
+                const cx=l.x*TILE+TILE/2, by=l.y*TILE+TILE-4, a=l.active?0.5:-0.5;
+                ctx.save(); ctx.translate(cx, by-4); ctx.rotate(a);
+                ctx.fillStyle='#d6d3d1'; ctx.fillRect(-2,-24,4,24);
+                ctx.fillStyle=l.color; ctx.beginPath(); ctx.arc(0,-25,6,0,Math.PI*2); ctx.fill();
+                ctx.restore(); ctx.fillStyle='#44403c'; ctx.fillRect(cx-10,by-6,20,10);
+            }
+            drawBoulder(ctx, b) {
+                const px=b.drawX*TILE, py=b.drawY*TILE;
+                ctx.fillStyle='#57534e'; ctx.fillRect(px+2,py+2,TILE-4,TILE-4);
+                ctx.strokeStyle='#3f3b37'; ctx.lineWidth=2; ctx.strokeRect(px+9,py+9,TILE-18,TILE-18);
+            }
+            drawGate(ctx, g) {
+                const px=g.x*TILE, py=g.y*TILE, h=(TILE-6)*(1-g.openAnim);
+                ctx.fillStyle='#27272a'; ctx.fillRect(px+4,py,TILE-8,6);
+                if(h>2) { ctx.fillStyle=g.color+'88'; ctx.fillRect(px+6,py+6,TILE-12,h); }
+            }
+            drawTrapdoor(ctx, t) {
+                const px=t.x*TILE, py=t.y*TILE, w=(TILE/2)*(1-t.openAnim);
+                ctx.fillStyle='#0a0807'; ctx.fillRect(px,py,TILE,TILE);
+                ctx.fillStyle='#44403c'; ctx.fillRect(px,py,w,TILE); ctx.fillRect(px+TILE-w,py,w,TILE);
+                if(t.openAnim<1){ ctx.fillStyle=t.color; ctx.fillRect(px+w-2,py,2,TILE); ctx.fillRect(px+TILE-w,py,2,TILE); }
+            }
+            drawLift(ctx, lift) {
+                const px = lift.x1 * TILE, py = lift.drawY * TILE, width = (lift.x2 - lift.x1 + 1) * TILE;
+                ctx.strokeStyle = '#57534e'; ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.moveTo(px + width / 2, lift.yTop * TILE); ctx.lineTo(px + width / 2, py); ctx.stroke();
+                ctx.fillStyle = '#292524'; ctx.fillRect(px + 2, py, width - 4, TILE);
+                ctx.fillStyle = lift.color; ctx.fillRect(px + 4, py + 2, width - 8, 4);
+                ctx.fillStyle = '#78716c'; ctx.fillRect(px + 4, py + 8, width - 8, TILE - 12);
+            }
+            drawTeleport(ctx, x, y, col) {
+                ctx.save(); ctx.translate(x*TILE+TILE/2, y*TILE+TILE/2); ctx.rotate(this.tick*0.05);
+                ctx.beginPath(); ctx.ellipse(0,0,12+Math.sin(this.tick*0.15)*2,22,0,0,Math.PI*2);
+                ctx.fillStyle=col; ctx.globalAlpha=0.6; ctx.fill(); ctx.restore();
+            }
+            drawExplorer(ctx, e, a) {
+                const px=e.drawX*TILE + (this.explorers[0].x===this.explorers[1].x && this.explorers[0].y===this.explorers[1].y && e.id===0?-7: (this.explorers[0].x===this.explorers[1].x && this.explorers[0].y===this.explorers[1].y ? 7:0));
+                const py=e.drawY*TILE, cx=px+TILE/2, b=Math.sin(this.tick*0.15+e.id*2)*1.2;
+                if(!e.alive){ ctx.fillStyle='#ef4444'; ctx.font='24px sans-serif'; ctx.textAlign='center'; ctx.fillText('💀',cx,py+TILE-10); return; }
+                if(a){ ctx.fillStyle=e.color; ctx.beginPath(); ctx.moveTo(cx-6,py-14); ctx.lineTo(cx+6,py-14); ctx.lineTo(cx,py-6); ctx.fill(); }
+                const ls = e.stepFrame%2===0?2:-2;
+                ctx.fillStyle='#451a03'; ctx.fillRect(cx-7,py+36+(ls>0?-2:0),6,10); ctx.fillRect(cx+1,py+36+(ls<0?-2:0),6,10);
+                ctx.fillStyle='#78350f'; ctx.fillRect(cx-7,py+29,14,8);
+                ctx.fillStyle=e.color; ctx.fillRect(cx-8,py+16+b,16,14);
+                ctx.fillStyle='#fed7aa'; ctx.fillRect(cx-6,py+7+b,12,10);
+                ctx.fillStyle=e.hat; ctx.fillRect(cx-9,py+6+b,18,3); ctx.fillRect(cx-6,py+2+b,12,5);
+            }
+        }
+
+        /* ============================================================================
+         * OBSLUHA KLÁVESNICE
+         * ============================================================================ */
+        let game;
+        window.onload = () => {
+            game = new QuadraxGame();
+            window.addEventListener('keydown', e => {
+                const wMod = !document.getElementById('walkthroughModal').classList.contains('hidden');
+                const lMod = !document.getElementById('levelSelectModal').classList.contains('hidden');
+                const sMod = !document.getElementById('settingsModal').classList.contains('hidden');
+
+                if (wMod || lMod || sMod) {
+                    if (e.key === 'Escape' || e.key.toLowerCase() === 'h' || e.key.toLowerCase() === 'l') {
+                        document.getElementById('walkthroughModal').classList.add('hidden');
+                        document.getElementById('levelSelectModal').classList.add('hidden');
+                        document.getElementById('settingsModal').classList.add('hidden');
+                    }
+                    return;
+                }
+
+                switch(e.key.toLowerCase()) {
+                    case 'a': case 'arrowleft':
+                        e.preventDefault(); game.handleMove(-1, 0); break;
+                    case 'd': case 'arrowright':
+                        e.preventDefault(); game.handleMove(1, 0); break;
+                    case 'w': case 'arrowup':
+                        e.preventDefault(); game.handleMove(0, -1); break;
+                    case 's': case 'arrowdown':
+                        e.preventDefault(); game.handleMove(0, 1); break;
+                    case 'tab':
+                        e.preventDefault(); game.switchExplorer(); break;
+                    case ' ': case 'e': case 'enter':
+                        e.preventDefault(); game.triggerAction(); break;
+                    case 'z': case 'backspace':
+                        e.preventDefault(); game.undo(); break;
+                    case 'r':
+                        e.preventDefault(); game.restartLevel(); break;
+                    case 'h':
+                        e.preventDefault(); game.showWalkthrough(); break;
+                    case 'l':
+                        e.preventDefault(); game.showLevelSelect(); break;
+                    case 'm':
+                        e.preventDefault(); soundFX.toggleMute(); break;
+                }
+            });
+        };
+    </script>
+</body>
+</html>
